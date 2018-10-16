@@ -148,6 +148,14 @@ class Action(ABC):
         """
         pass
 
+    def merge_with_insert_action(self, action):
+        return [action, self]
+
+    def merge_with_delete_action(self, action):
+        return [action, self]
+
+    def merge_with_replace_action(self, action):
+        return [action, self]
 
 class InsertAction(Action):
     """
@@ -174,12 +182,6 @@ class InsertAction(Action):
             return [action]
         return [action, self]
 
-    def merge_with_delete_action(self, action):
-        return [action, self]
-
-    def merge_with_replace_action(self, action):
-        return [action, self]
-
     def apply(self, text):
         if self.pos > len(text) or self.pos < 0:
             raise ValueError("incorrect pos in InsertAction.")
@@ -204,15 +206,6 @@ class ReplaceAction(Action):
 
     def merge(self, another_action):
         return another_action.merge_with_replace_action(self)
-
-    def merge_with_insert_action(self, action):
-        return [action, self]
-
-    def merge_with_delete_action(self, action):
-        return [action, self]
-
-    def merge_with_replace_action(self, action):
-        return [action, self]
 
     def apply(self, text):
         if self.pos > len(text) or self.pos < 0:
@@ -243,18 +236,12 @@ class DeleteAction(Action):
     def merge(self, another_action):
         return another_action.merge_with_delete_action(self)
 
-    def merge_with_insert_action(self, action):
-        return [action, self]
-
     def merge_with_delete_action(self, action):
         if action.pos == self.pos:
             action = DeleteAction(self.pos,
                                   action.length + self.length,
                                   action.from_version, self.to_version)
             return [action]
-        return [action, self]
-
-    def merge_with_replace_action(self, action):
         return [action, self]
 
     def apply(self, text):
