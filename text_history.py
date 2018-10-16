@@ -13,7 +13,6 @@ class TextHistory:
     def __init__(self):
         self._text = ""
         self._version = 0
-        self.__txtlen = 0
         self.__actions_list = []
 
     @property
@@ -36,15 +35,10 @@ class TextHistory:
         """
 
         if pos is None:
-            pos = self.__txtlen
-        if pos > self.__txtlen or pos < 0:
-            raise ValueError("incorrect pos for insert.")
-        self._text = self._text[:pos] + txt + self._text[pos:]
-        self._version += 1
-        self.__txtlen += len(txt)
-        self.__actions_list.append(InsertAction(pos, txt,
-                                                self._version - 1,
-                                                self._version))
+            pos = len(self._text)
+
+        act = InsertAction(pos, txt, self._version, self._version + 1)
+        self.action(act)
         return self._version
 
     def replace(self, txt, pos=None):
@@ -53,19 +47,10 @@ class TextHistory:
         """
 
         if pos is None:
-            pos = self.__txtlen
-        if pos > self.__txtlen or pos < 0:
-            raise ValueError("incorrect pos for replace.")
-        end_idx = pos + len(txt)
-        if end_idx > self.__txtlen - 1:
-            self._text = self._text[:pos] + txt
-        else:
-            self._text = self._text[:pos] + txt + self._text[end_idx:]
-        self._version += 1
-        self.__txtlen = len(self._text)
-        self.__actions_list.append(ReplaceAction(pos, txt,
-                                                 self._version - 1,
-                                                 self._version))
+            pos = len(self._text)
+
+        act = ReplaceAction(pos, txt, self._version, self._version + 1)
+        self.action(act)
         return self._version
 
     def delete(self, pos, length):
@@ -74,14 +59,8 @@ class TextHistory:
         length at the specified position
         """
 
-        if pos < 0 or pos + length > self.__txtlen:
-            raise ValueError("incorrect pos for delete.")
-        self._text = self._text[:pos] + self._text[pos + length:]
-        self._version += 1
-        self.__txtlen = len(self._text)
-        self.__actions_list.append(DeleteAction(pos, length,
-                                                self._version - 1,
-                                                self._version))
+        act = DeleteAction(pos, length, self._version, self._version + 1)
+        self.action(act)
         return self._version
 
     def action(self, action):
@@ -91,9 +70,9 @@ class TextHistory:
 
         if self._version != action.from_version:
             raise ValueError("incopatible versions.")
+
         self._text = action.apply(self._text)
         self._version = action.to_version
-        self.__txtlen = len(self._text)
         self.__actions_list.append(action)
         return self._version
 
@@ -205,8 +184,9 @@ class InsertAction(Action):
                                           self.from_version, self.to_version)
 
     def apply(self, text):
-        if self.pos > len(text):
+        if self.pos > len(text) or self.pos < 0:
             raise ValueError("incorrect pos in InsertAction.")
+
         text = text[:self.pos] + self.text + text[self.pos:]
         return text
 
@@ -226,8 +206,9 @@ class ReplaceAction(Action):
                                           self.from_version, self.to_version)
 
     def apply(self, text):
-        if self.pos > len(text):
+        if self.pos > len(text) or self.pos < 0:
             raise ValueError("incorrect pos in ReplaceAction")
+
         end_idx = self.pos + len(self.text)
         if end_idx >= len(text):
             text = text[:self.pos] + self.text
@@ -251,16 +232,12 @@ class DeleteAction(Action):
                                           self.from_version, self.to_version)
 
     def apply(self, text):
-        if self.pos + self.length > len(text):
+        if self.pos + self.length > len(text) or self.pos < 0:
             raise ValueError("incorrect pos in DeleteAction.")
+
         text = text[:self.pos] + text[self.pos + self.length:]
         return text
 
 
 if __name__ == "__main__":
-    TEST = TextHistory()
-    TEST.insert('a')
-    TEST.insert('bc')
-    TEST.replace('B', pos=1)
-    TEST.delete(pos=0, length=1)
-    print(TEST.text)
+    pass
