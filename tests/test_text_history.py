@@ -171,3 +171,29 @@ class TextHistoryTestCase(TestCase):
 
         h.insert('a')
         self.assertEqual([], h.get_actions(0, 0))
+
+    def test_optimize_insert(self):
+        h = TextHistory()
+        h.insert('a')
+        h.insert('b')
+        h.insert('c')
+        actions = h.get_actions()
+
+        self.assertEqual(1, len(actions))
+        action, = actions
+        self.assertIsInstance(action, InsertAction)
+
+    def test_optimize_delete(self):
+        h = TextHistory()
+        h.insert('abcdefg')
+        h.delete(2, 2)
+        h.delete(2, 1)
+        actions = h.get_actions()
+
+        self.assertEqual(2, len(h.get_actions()))
+        insert, delete = actions
+        self.assertIsInstance(insert, InsertAction)
+        self.assertIsInstance(delete, DeleteAction)
+
+
+
