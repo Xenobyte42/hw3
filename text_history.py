@@ -82,27 +82,6 @@ class TextHistory:
         Optimizes delete actions
         """
 
-        pre_action = optimize_act_list[-1]
-        if pre_action.pos == action.pos:
-            action = DeleteAction(action.pos,
-                                  pre_action.length + action.length,
-                                  pre_action.from_version, action.to_version)
-            optimize_act_list.pop()
-        optimize_act_list.append(action)
-
-    @staticmethod
-    def try_merge_insert(action, optimize_act_list):
-        """
-        Optimizes insert actions
-        """
-
-        pre_action = optimize_act_list[-1]
-        if action.pos == (pre_action.pos + len(pre_action.text)):
-            action = InsertAction(pre_action.pos,
-                                  pre_action.text + action.text,
-                                  pre_action.from_version, action.to_version)
-            optimize_act_list.pop()
-        optimize_act_list.append(action)
 
     @staticmethod
     def optimize(act_list):
@@ -113,15 +92,9 @@ class TextHistory:
         optimize_act_list = []
         for action in act_list:
             if optimize_act_list:
-                if isinstance(optimize_act_list[-1], type(action)):
-                    if isinstance(action, InsertAction):
-                        TextHistory.try_merge_insert(action, optimize_act_list)
-                    elif isinstance(action, DeleteAction):
-                        TextHistory.try_merge_delete(action, optimize_act_list)
-                    else:
-                        optimize_act_list.append(action)
-                else:
-                    optimize_act_list.append(action)
+                another_action = optimize_act_list.pop()
+                merged = another_action.merge(action)
+                optimize_act_list += merged
             else:
                 optimize_act_list.append(action)
 
@@ -168,6 +141,13 @@ class Action(ABC):
         """
         pass
 
+    @abstractmethod
+    def merge(self, another_action):
+        """
+        Merge virtual function
+        """
+        pass
+
 
 class InsertAction(Action):
     """
@@ -182,6 +162,23 @@ class InsertAction(Action):
         return "insert({}, pos={}, \
                 ver1={}, ver2={})".format(self.text, self.pos,
                                           self.from_version, self.to_version)
+
+    def merge(self, another_action):
+        return another_action.merge_with_insert_action(self)
+
+    def merge_with_insert_action(self, action):
+        if self.pos == (action.pos + len(action.text)):
+            action = InsertAction(action.pos,
+                                  action.text + self.text,
+                                  action.from_version, self.to_version)
+            return [action]
+        return [action, self]
+
+    def merge_with_delete_action(self, action):
+        return [action, self]
+
+    def merge_with_replace_action(self, action):
+        return [action, self]
 
     def apply(self, text):
         if self.pos > len(text) or self.pos < 0:
@@ -204,6 +201,18 @@ class ReplaceAction(Action):
         return "replace({}, pos={}, \
                 ver1={}, ver2={})".format(self.text, self.pos,
                                           self.from_version, self.to_version)
+
+    def merge(self, another_action):
+        return another_action.merge_with_replace_action(self)
+
+    def merge_with_insert_action(self, action):
+        return [action, self]
+
+    def merge_with_delete_action(self, action):
+        return [action, self]
+
+    def merge_with_replace_action(self, action):
+        return [action, self]
 
     def apply(self, text):
         if self.pos > len(text) or self.pos < 0:
@@ -230,6 +239,23 @@ class DeleteAction(Action):
         return "delete(pos={}, length={}, \
                 ver1={}, ver2={})".format(self.pos, self.length,
                                           self.from_version, self.to_version)
+
+    def merge(self, another_action):
+        return another_action.merge_with_delete_action(self)
+
+    def merge_with_insert_action(self, action):
+        return [action, self]
+
+    def merge_with_delete_action(self, action):
+        if action.pos == self.pos:
+            action = DeleteAction(self.pos,
+                                  action.length + self.length,
+                                  action.from_version, self.to_version)
+            return [action]
+        return [action, self]
+
+    def merge_with_replace_action(self, action):
+        return [action, self]
 
     def apply(self, text):
         if self.pos + self.length > len(text) or self.pos < 0:
